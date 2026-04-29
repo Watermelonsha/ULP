@@ -106,7 +106,20 @@ def checkInput(data, type):
         case "mix":
             return bool(re.fullmatch(r"[a-zA-Z0-9 ]+", data))
         case "time":
-            return bool(re.fullmatch(r"\d{2}:\d{2}", data))
+            if len(data) != 5:
+                return False
+            if data[2] != ":":
+                return False
+    
+            hours = int(data[0:2])
+            minutes = int(data[3:5])
+            
+            if hours < 0 or hours > 23:
+                return False
+            if minutes < 0 or minutes > 59:
+                return False
+    
+            return True
         case "date":
             return bool(re.fullmatch(r"\d{2}\.\d{2}\.(\d{2}|\d{4})", data))
 
@@ -138,7 +151,7 @@ def saveDataButtonClicked(classs, day, time, room):
     if checkInput(classs, "text") and checkInput(time, "time") and checkInput(room, "mix"):
         try:
             with open(scheduleFile, 'a') as f:
-                f.write(f"{classs} - {day} - {time} - {room}\n")
+                f.write(classs + "  -  " + day + "  -  " + time + "  -  " + room + "\n")
             showNotification(addClassWindow, "DATA SAVED!", "#38c34a")
             setToNullSchedule()
         except Exception as e:
@@ -150,7 +163,7 @@ def saveNoteButtonClicked(title, text):
     if checkInput(title, "text") and checkInput(text, "mix"):
         try:
             with open(notesFile, 'a') as f:
-                f.write(f"{title} - {text}\n")
+                f.write(title + ":  " + text + "\n")
             showNotification(addNoteWindow, "DATA SAVED!", "#38c34a")
             noteTitle.delete(0, "end")
             noteText.delete(0, "end")
@@ -163,7 +176,7 @@ def saveEventButtonClicked(name, day, time, location):
     if checkInput(name, "text") and checkInput(time, "time") and checkInput(location, "mix"):
         try:
             with open(eventsFile, 'a') as f:
-                f.write(f"{name} - {day} - {time} - {location}\n")
+                f.write(name + "  -  " + day + "  -  " + time + "  -  " + location + "\n")
             showNotification(addEventWindow, "DATA SAVED!", "#38c34a")
             setToNullEvent()
         except Exception as e:
@@ -177,7 +190,6 @@ def goToMenu():
 
 def goToSchedule():
     hideAll()
-    setToNullSchedule()
     scheduleWindow.pack()
 
 def goToNotes():
@@ -186,7 +198,6 @@ def goToNotes():
 
 def goToEvents():
     hideAll()
-    setToNullEvent()
     eventsWindow.pack()
 
 def buttonClicked(name):
@@ -223,6 +234,7 @@ def makeText(container, text):
     label = ctk.CTkLabel(
         container,
         text=text,
+        wraplength=750,
         font=("Dubai", 24, "bold"),
         text_color="#e8ecef",
     )
@@ -242,8 +254,9 @@ def printText(container, filename, page, goBackPage):
             if page == "view":
                 makeText(container, line)
             elif page == "delete":
-                row = ctk.CTkFrame(container, fg_color="transparent")
-                row.pack(fill="x", pady=2)
+                row = ctk.CTkFrame(container, fg_color="transparent", width=700)
+                row.pack(fill="x", pady=5)
+                row.pack_propagate(False) 
 
                 button = ctk.CTkButton(
                     row,
@@ -251,6 +264,7 @@ def printText(container, filename, page, goBackPage):
                     width=60,
                     font=("Dubai", 24, "bold"),
                     text_color="#e8ecef",
+                    fg_color="#A6C0E4",
                     command=makeDeleteCommand(line, filename, goBackPage)
                 )
                 button.pack(side="right", padx=10)
@@ -258,10 +272,14 @@ def printText(container, filename, page, goBackPage):
                 label = ctk.CTkLabel(
                     row,
                     text=line.strip(),
-                    font=("Dubai", 24, "bold"),
+                    font=("Dubai", 20, "bold"),
                     text_color="#e8ecef",
+                    wraplength=550,
+                    justify="left"
                 )
-                label.pack(side="left", padx=10)
+                label.pack(side="left", padx=10, fill="both", expand=True)
+
+
 
         if count == 0:
             makeText(container, "No entries found")
@@ -275,6 +293,28 @@ def setPages(page):
     hideAll()
     match page:
         case "addClassWindow":
+            for widget in addClassWindow.winfo_children():
+                widget.destroy()
+            makeLabel("Add Class", addClassWindow)
+            global classField, timeField, roomField, dayField
+            classField = makeTextField("Enter class", addClassWindow)
+            dayField = DateEntry(
+                addClassWindow,
+                width=22,
+                font=("Dubai", 18, "bold"),
+                fieldbackground="#cfe3f1",
+                foreground="#333333",
+                background="#5f86a6",
+                borderwidth=0,
+                date_pattern="dd.mm.yy"
+            )
+            dayField.pack(pady=5, ipady=8)
+            timeField = makeTextField("Enter time", addClassWindow)
+            roomField = makeTextField("Enter room", addClassWindow)
+            saveDataButton(addClassWindow, lambda: saveDataButtonClicked(
+                classField.get(), dayField.get(), timeField.get(), roomField.get()
+            ))
+            makeGoBackButton(addClassWindow, goToSchedule)
             addClassWindow.pack()
         case "viewScheduleWindow":
             for widget in viewScheduleWindow.winfo_children():
@@ -293,6 +333,14 @@ def setPages(page):
             makeGoBackButton(deleteClassWindow, goToSchedule)
             deleteClassWindow.pack()
         case "addNoteWindow":
+            for widget in addNoteWindow.winfo_children():
+                widget.destroy()
+            makeLabel("Add Note", addNoteWindow)
+            global noteTitle, noteText
+            noteTitle = makeTextField("Enter title", addNoteWindow)
+            noteText = makeTextField("Enter text", addNoteWindow)
+            saveDataButton(addNoteWindow, lambda: saveNoteButtonClicked(noteTitle.get(), noteText.get()))
+            makeGoBackButton(addNoteWindow, goToNotes)
             addNoteWindow.pack()
         case "viewNotesWindow":
             for widget in viewNotesWindow.winfo_children():
@@ -311,6 +359,28 @@ def setPages(page):
             makeGoBackButton(deleteNoteWindow, goToNotes)
             deleteNoteWindow.pack()
         case "addEventWindow":
+            for widget in addEventWindow.winfo_children():
+                widget.destroy()
+            makeLabel("Add Event", addEventWindow)
+            global eventNameField, eventTimeField, eventLocationField, eventDayField
+            eventNameField = makeTextField("Enter event name", addEventWindow)
+            eventDayField = DateEntry(
+                addEventWindow,
+                width=22,
+                font=("Dubai", 18, "bold"),
+                fieldbackground="#cfe3f1",
+                foreground="#333333",
+                background="#5f86a6",
+                borderwidth=0,
+                date_pattern="dd.mm.yy"
+            )
+            eventDayField.pack(pady=5, ipady=8)
+            eventTimeField = makeTextField("Enter time", addEventWindow)
+            eventLocationField = makeTextField("Enter location", addEventWindow)
+            saveDataButton(addEventWindow, lambda: saveEventButtonClicked(
+                eventNameField.get(), eventDayField.get(), eventTimeField.get(), eventLocationField.get()
+            ))
+            makeGoBackButton(addEventWindow, goToEvents)
             addEventWindow.pack()
         case "viewEventsWindow":
             for widget in viewEventsWindow.winfo_children():
@@ -334,15 +404,13 @@ def makeFrame(container):
         container,
         width=800,
         height=400,
-        fg_color="#1c2b48"
+        fg_color="#6d778c"
     )
     frame.pack()
     return frame
 
 def closeApp():
     app.destroy()
-
-
 
 scheduleWindow = ctk.CTkFrame(mainContainer, fg_color="transparent")
 notesWindow = ctk.CTkFrame(mainContainer, fg_color="transparent")
@@ -356,7 +424,6 @@ eventsWindow = ctk.CTkFrame(mainContainer, fg_color="transparent")
 addEventWindow = ctk.CTkFrame(mainContainer, fg_color="transparent")
 viewEventsWindow = ctk.CTkFrame(mainContainer, fg_color="transparent")
 deleteEventWindow = ctk.CTkFrame(mainContainer, fg_color="transparent")
-
 
 makeLabel("UNIVERSITY LIFE PLANNER", menuContainer)
 makeButton("Schedule", menuContainer, lambda: buttonClicked("scheduleButton"))
@@ -378,26 +445,6 @@ makeButton("View Schedule", scheduleWindow, lambda: setPages("viewScheduleWindow
 makeButton("Delete Class", scheduleWindow, lambda: setPages("deleteClassWindow"))
 makeGoBackButton(scheduleWindow, goToMenu)
 
-#Add class Window
-makeLabel("Add Class", addClassWindow)
-classField = makeTextField("Enter class", addClassWindow)
-dayField = DateEntry(
-    addClassWindow,
-    width=22,
-    font=("Dubai", 18, "bold"),
-    fieldbackground="#cfe3f1",
-    foreground="#333333",
-    background="#5f86a6",
-    borderwidth=0,
-    date_pattern="dd.mm.yy"
-)
-dayField.pack(pady=5, ipady=8)
-timeField = makeTextField("Enter time", addClassWindow)
-roomField = makeTextField("Enter room", addClassWindow)
-saveDataButton(addClassWindow, lambda: saveDataButtonClicked(
-    classField.get(), dayField.get(), timeField.get(), roomField.get()
-))
-makeGoBackButton(addClassWindow, goToSchedule)
 
 #Notes Window
 makeLabel("Notes", notesWindow)
@@ -406,12 +453,6 @@ makeButton("View Notes", notesWindow, lambda: setPages("viewNotesWindow"))
 makeButton("Delete Note", notesWindow, lambda: setPages("deleteNoteWindow"))
 makeGoBackButton(notesWindow, goToMenu)
 
-#Add notes window
-makeLabel("Add Note", addNoteWindow)
-noteTitle = makeTextField("Enter title", addNoteWindow)
-noteText = makeTextField("Enter text", addNoteWindow)
-saveDataButton(addNoteWindow, lambda: saveNoteButtonClicked(noteTitle.get(), noteText.get()))
-makeGoBackButton(addNoteWindow, goToNotes)
 
 #events window
 makeLabel("Events", eventsWindow)
@@ -420,25 +461,5 @@ makeButton("View Events", eventsWindow, lambda: setPages("viewEventsWindow"))
 makeButton("Delete Event", eventsWindow, lambda: setPages("deleteEventWindow"))
 makeGoBackButton(eventsWindow, goToMenu)
 
-#add event window
-makeLabel("Add Event", addEventWindow)
-eventNameField = makeTextField("Enter event name", addEventWindow)
-eventDayField = DateEntry(
-    addEventWindow,
-    width=22,
-    font=("Dubai", 18, "bold"),
-    fieldbackground="#cfe3f1",
-    foreground="#333333",
-    background="#5f86a6",
-    borderwidth=0,
-    date_pattern="dd.mm.yy"
-)
-eventDayField.pack(pady=5, ipady=8)
-eventTimeField = makeTextField("Enter time", addEventWindow)
-eventLocationField = makeTextField("Enter location", addEventWindow)
-saveDataButton(addEventWindow, lambda: saveEventButtonClicked(
-    eventNameField.get(), eventDayField.get(), eventTimeField.get(), eventLocationField.get()
-))
-makeGoBackButton(addEventWindow, goToEvents)
 
 app.mainloop()
